@@ -1,0 +1,3 @@
+[submodule "python-stuff"]
+	path = python-stuff
+	url = git@github.com:proactivity-lab/python-stuff.git
