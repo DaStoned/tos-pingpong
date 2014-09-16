@@ -3,11 +3,7 @@
 __author__ = "Raido Pahtma"
 __license__ = "MIT"
 
-import logging
-log = logging.getLogger(__name__)
-
 from twisted.internet import reactor, task
-from extratwisted.twistedmonkeytos import TwistedMonkeyTos
 
 import struct
 import datetime
@@ -15,6 +11,12 @@ import time
 
 import argparse
 from argconfparse.argconfparse import ConfigArgumentParser, arg_hex2int
+
+from monkey import Monkey
+
+import logging
+log = logging.getLogger(__name__)
+
 
 AMID_TOSPINGPONG_PING = 0xFA
 AMID_TOSPINGPONG_PONG = 0xFB
@@ -159,12 +161,12 @@ class PingSender(object):
         self._last_pongs = {}
 
         self._connection = connection
-        """@type: extratwisted.twistedmonkeytos.TwistedMonkeyTos"""
-        self._connection.add_receiver(self, AMID_TOSPINGPONG_PONG)
+        self._connection.add_receive_callback(self.receive, AMID_TOSPINGPONG_PONG)
 
         self._looper = task.LoopingCall(self._ping)
 
-        self._looper.start(self._interval/1000, True)
+    def start(self):
+        reactor.callFromThread(self._looper.start, self._interval/1000, True)
 
     def _ts_now(self):
         now = datetime.datetime.utcnow()
@@ -192,36 +194,43 @@ class PingSender(object):
 
             printgreen(out)
 
-            self._connection.send((self._connection.address, self._destination, AMID_TOSPINGPONG_PING, p.serialize()))
+            packet = self._connection.new_packet()
+            packet.dest = self._destination
+            packet.src = self._connection.address
+            packet.type = AMID_TOSPINGPONG_PING
+            packet.payload = p.serialize()
+
+            self._connection.send(packet)
+
         else:
             print("{} all pings sent".format(self._ts_now()))
             self._looper.stop()
 
-    def receive(self, source, destination, am_id, data):
+    def receive(self, packet):
         try:
             p = PongPacket()
-            p.deserialize(data)
+            p.deserialize(packet.payload)
 
             pformat = "{} pong {:>2} {}/{} {:04X}->{:04X}[{:02X}]"
 
             if p.pingnum == self._pingnum:
-                if source not in self._last_pongs:
-                    self._last_pongs[source] = 0
+                if packet.src not in self._last_pongs:
+                    self._last_pongs[packet.src] = 0
 
-                if p.pong > self._last_pongs[source] + 1:
-                    for i in xrange(self._last_pongs[source] + 1, p.pong):
-                        pout = pformat.format(self._ts_now(), p.pingnum, i, p.pongs, source, destination, am_id)
+                if p.pong > self._last_pongs[packet.src] + 1:
+                    for i in xrange(self._last_pongs[packet.src] + 1, p.pong):
+                        pout = pformat.format(self._ts_now(), p.pingnum, i, p.pongs, packet.src, packet.dest, packet.type)
                         out = "{} LOST".format(pout)
                         printred(out)
 
-                self._last_pongs[source] = p.pong
+                self._last_pongs[packet.src] = p.pong
                 delay = p.tx_time_ms - p.rx_time_ms
                 rtt = (time.time() - self._pingstart)*1000 - delay
             else:
                 delay = 0
                 rtt = 0
 
-            pout = pformat.format(self._ts_now(), p.pingnum, p.pong, p.pongs, source, destination, am_id)
+            pout = pformat.format(self._ts_now(), p.pingnum, p.pong, p.pongs, packet.src, packet.dest, packet.type)
             out = "{} ({:>3}/{:>3}/{:>3}) time={:>4.0f}ms delay={:>4.0f}ms uptime={:d}s {:s}".format(
                 pout,
                 p.ping_size, p.pong_size, p.pong_size_max,
@@ -231,6 +240,7 @@ class PingSender(object):
 
         except ValueError as e:
             printred("{} pong {}".format(self._ts_now(), e.message))
+
 
 if __name__ == '__main__':
 
@@ -258,11 +268,15 @@ if __name__ == '__main__':
         import simplelogging.logsetup
         simplelogging.logsetup.setup_console()
 
-    con = TwistedMonkeyTos(args.connection)
-    con.address = args.address  # TODO remove for proper connection
+    con = Monkey(args.connection, args.address, callback_reactor=reactor)
     pinger = PingSender(con, args)
+
+    con.open()
+    pinger.start()
 
     # Run the system
     reactor.run()
+
+    con.close()
 
     printgreen("done")
