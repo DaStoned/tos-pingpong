@@ -10,6 +10,7 @@ generic module TosPingPongSenderP() {
 		interface AMSend as PingSend;
 		interface Receive as PongReceive;
 		interface AMPacket;
+		interface Leds;
 	}
 }
 implementation {
@@ -45,6 +46,7 @@ implementation {
 				{
 					debug1("snd %p", &m_msg);
 					m_sending = TRUE;
+					call Leds.led0On();
 					return m_pingnum;
 				}
 				else
@@ -73,6 +75,7 @@ implementation {
 	{
 		logger(error == SUCCESS ? LOG_DEBUG1: LOG_WARN1, "snt %p %u", msg, error);
 		m_sending = FALSE;
+		call Leds.led0Off();
 	}
 
 }

@@ -19,4 +19,7 @@ implementation {
 	TosPingPongSenderP.PongReceive -> AMReceiverC;
 	TosPingPongSenderP.AMPacket -> AMReceiverC;
 
+	components LedsC;
+	TosPingPongSenderP.Leds -> LedsC;
+
 }
