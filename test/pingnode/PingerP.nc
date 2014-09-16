@@ -35,7 +35,7 @@ implementation {
 		}
 	}
 
-	event void TosPingPong.pong(am_addr_t source, MultiPong_t* pong)
+	event void TosPingPong.pong(am_addr_t source, TosPingPongPong_t* pong)
 	{
 		debug1("%04X %"PRIu32" %"PRIu32"/%"PRIu32" %"PRIu32">>%"PRIu32" %"PRIu32,
 			source, pong->pingnum, pong->pong, pong->pongs, pong->rx_time_ms,

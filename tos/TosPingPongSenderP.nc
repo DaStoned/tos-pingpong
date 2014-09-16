@@ -40,7 +40,7 @@ implementation {
 				ping->delay_ms = delay;
 				ping->ping_size = sizeof(TosPingPongPing_t);
 				ping->pong_size = sizeof(TosPingPongPong_t);
-				err = call PingSend.send(target, &m_msg, sizeof(MultiPing_t));
+				err = call PingSend.send(target, &m_msg, sizeof(TosPingPongPing_t));
 				if(err == SUCCESS)
 				{
 					debug1("snd %p", &m_msg);
