@@ -200,7 +200,10 @@ class PingSender(object):
             packet.type = AMID_TOSPINGPONG_PING
             packet.payload = p.serialize()
 
-            self._connection.send(packet)
+            try:
+                self._connection.send(packet)
+            except IOError:
+                print("{} send failed".format(self._ts_now()))
 
         else:
             print("{} all pings sent".format(self._ts_now()))
@@ -260,6 +263,8 @@ if __name__ == '__main__':
     parser.add_argument("--connection", default="sf@localhost:9001")
     parser.add_argument("--address", default=0xFFFE, type=arg_hex2int, help="Local address")
 
+    parser.add_argument("--channel", default=None, type=int, help="Radio channel")
+
     parser.add_argument("--debug", action="store_true", default=False)
 
     args = parser.parse_args()
@@ -268,7 +273,16 @@ if __name__ == '__main__':
         import simplelogging.logsetup
         simplelogging.logsetup.setup_console()
 
+    def closed():
+        print("closed")
+        reactor.callFromThread(reactor.stop)
+
     con = Monkey(args.connection, args.address, callback_reactor=reactor)
+    con.set_closed_callback(closed)
+
+    if args.channel is not None:
+        reactor.callFromThread(con.set_channel, args.channel)
+
     pinger = PingSender(con, args)
 
     con.open()
