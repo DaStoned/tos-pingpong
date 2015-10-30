@@ -10,6 +10,7 @@ generic module TosPingPongSenderP() {
 		interface AMSend as PingSend;
 		interface Receive as PongReceive;
 		interface AMPacket;
+		interface Pool<message_t> as MessagePool;
 		interface Leds;
 	}
 }
@@ -24,37 +25,42 @@ implementation {
 	bool m_sending = FALSE;
 	uint32_t m_pingnum = 0;
 
-	message_t m_msg;
-
 	command uint32_t TosPingPong.ping(am_addr_t target, uint32_t pongs, uint32_t delay)
 	{
 		if(m_sending == FALSE)
 		{
-			TosPingPongPing_t* ping = call PingSend.getPayload(&m_msg, sizeof(TosPingPongPing_t));
-			if(ping != NULL)
+			message_t* msg = call MessagePool.get();
+			if(msg != NULL)
 			{
-				error_t err;
-				m_pingnum++;
-				ping->header = TOSPINGPONG_PING;
-				ping->pingnum = m_pingnum;
-				ping->pongs = pongs;
-				ping->delay_ms = delay;
-				ping->ping_size = sizeof(TosPingPongPing_t);
-				ping->pong_size = sizeof(TosPingPongPong_t);
-				err = call PingSend.send(target, &m_msg, sizeof(TosPingPongPing_t));
-				if(err == SUCCESS)
+				TosPingPongPing_t* ping = call PingSend.getPayload(msg, sizeof(TosPingPongPing_t));
+				if(ping != NULL)
 				{
-					debug1("snd %p", &m_msg);
-					m_sending = TRUE;
-					call Leds.led0On();
-					return m_pingnum;
+					error_t err;
+					m_pingnum++;
+					ping->header = TOSPINGPONG_PING;
+					ping->pingnum = m_pingnum;
+					ping->pongs = pongs;
+					ping->delay_ms = delay;
+					ping->ping_size = sizeof(TosPingPongPing_t);
+					ping->pong_size = sizeof(TosPingPongPong_t);
+					err = call PingSend.send(target, msg, sizeof(TosPingPongPing_t));
+					if(err == SUCCESS)
+					{
+						debug1("snd %p", msg);
+						m_sending = TRUE;
+						call Leds.led0On();
+						return m_pingnum;
+					}
+					else warn1("snd %p %u", msg, err);
 				}
-				else
-				{
-					warn1("snd %p %u", &m_msg, err);
-				}
+				else warn1("gPl(%u)", m_pong_size);
+
+				call MessagePool.put(msg);
 			}
+			else warn1("pool");
 		}
+		else warn1("bsy");
+
 		return 0;
 	}
 
@@ -74,6 +80,7 @@ implementation {
 	event void PingSend.sendDone(message_t* msg, error_t error)
 	{
 		logger(error == SUCCESS ? LOG_DEBUG1: LOG_WARN1, "snt %p %u", msg, error);
+		call MessagePool.put(msg);
 		m_sending = FALSE;
 		call Leds.led0Off();
 	}

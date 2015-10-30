@@ -18,6 +18,9 @@ implementation {
 	TosPingPongResponderP.PingReceive -> AMReceiverC;
 	TosPingPongResponderP.AMPacket -> AMReceiverC;
 
+	components GlobalPoolC;
+	TosPingPongResponderP.MessagePool -> GlobalPoolC;
+
 	components new TimerMilliC();
 	TosPingPongResponderP.Timer -> TimerMilliC;
 

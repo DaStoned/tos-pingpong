@@ -19,6 +19,9 @@ implementation {
 	TosPingPongSenderP.PongReceive -> AMReceiverC;
 	TosPingPongSenderP.AMPacket -> AMReceiverC;
 
+	components GlobalPoolC;
+	TosPingPongSenderP.MessagePool -> GlobalPoolC;
+
 	components LedsC;
 	TosPingPongSenderP.Leds -> LedsC;
 

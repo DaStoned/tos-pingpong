@@ -7,6 +7,7 @@ generic module TosPingPongResponderP() {
 		interface AMSend as PongSend;
 		interface Receive as PingReceive;
 		interface AMPacket;
+		interface Pool<message_t> as MessagePool;
 		interface Timer<TMilli>;
 		interface LocalTime<TSecond>;
 	}
@@ -29,8 +30,6 @@ implementation {
 	uint8_t m_pong_size = 0;
 
 	bool m_sending = FALSE;
-
-	message_t m_msg;
 
 	event message_t* PingReceive.receive(message_t* msg, void* payload, uint8_t len)
 	{
@@ -101,56 +100,59 @@ implementation {
 
 	event void Timer.fired()
 	{
+		m_pong++;
 		if(m_sending == FALSE)
 		{
-			TosPingPongPong_t* pong = call PongSend.getPayload(&m_msg, m_pong_size);
-			if(pong != NULL)
+			message_t* msg = call MessagePool.get();
+			if(msg != NULL)
 			{
-				uint8_t* padding = (uint8_t*)pong + sizeof(TosPingPongPong_t);
-				error_t err;
-				uint8_t i;
-
-				m_pong++;
-
-				pong->header = TOSPINGPONG_PONG;
-				pong->pingnum = m_pingnum;
-				pong->pongs = m_pongs;
-				pong->pong = m_pong;
-				pong->ping_size = m_ping_size;
-				pong->pong_size = m_pong_size;
-				pong->pong_size_max = call PongSend.maxPayloadLength();
-				pong->rx_time_ms = m_timestamp;
-				pong->tx_time_ms = call Timer.getNow();
-				pong->uptime_s = call LocalTime.get();
-
-				// Add padding as requested
-				for(i=0;i<m_pong_size-sizeof(TosPingPongPong_t);i++)
+				TosPingPongPong_t* pong = call PongSend.getPayload(msg, m_pong_size);
+				if(pong != NULL)
 				{
-					padding[i] = i;
-				}
+					uint8_t* padding = (uint8_t*)pong + sizeof(TosPingPongPong_t);
+					error_t err;
+					uint8_t i;
 
-				err = call PongSend.send(m_client, &m_msg, m_pong_size);
-				if(err == SUCCESS)
-				{
-					debug1("snd %p", &m_msg);
-					m_sending = TRUE;
+					pong->header = TOSPINGPONG_PONG;
+					pong->pingnum = m_pingnum;
+					pong->pongs = m_pongs;
+					pong->pong = m_pong;
+					pong->ping_size = m_ping_size;
+					pong->pong_size = m_pong_size;
+					pong->pong_size_max = call PongSend.maxPayloadLength();
+					pong->rx_time_ms = m_timestamp;
+					pong->tx_time_ms = call Timer.getNow();
+					pong->uptime_s = call LocalTime.get();
+
+					// Add padding as requested
+					for(i=0;i<m_pong_size-sizeof(TosPingPongPong_t);i++)
+					{
+						padding[i] = i;
+					}
+
+					err = call PongSend.send(m_client, msg, m_pong_size);
+					if(err == SUCCESS)
+					{
+						debug1("snd %p", msg);
+						m_sending = TRUE;
+						return;
+					}
+					else warn1("snd %p %u", msg, err);
 				}
-				else
-				{
-					warn1("snd %p %u", &m_msg, err);
-					continuePong();
-				}
+				else warn1("gPl(%u)", m_pong_size);
+
+				call MessagePool.put(msg);
+				continuePong();
 			}
-			else
-			{
-				warn1("gPl(%u)", m_pong_size);
-			}
+			else warn1("pool");
 		}
+		else warn1("bsy");
 	}
 
 	event void PongSend.sendDone(message_t* msg, error_t error)
 	{
 		logger(error == SUCCESS ? LOG_DEBUG1: LOG_WARN1, "snt %p %u", msg, error);
+		call MessagePool.put(msg);
 		m_sending = FALSE;
 		continuePong();
 	}
