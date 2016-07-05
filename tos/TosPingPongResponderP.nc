@@ -68,6 +68,7 @@ implementation {
 				if(padding[i] == i) m_ping_size++;
 				else break;
 			}
+			debug1("ping from %04x num %u delay %u pongs %u", m_client, m_pingnum, m_delay, m_pongs);
 			call Timer.startOneShot(0);
 		}
 		else

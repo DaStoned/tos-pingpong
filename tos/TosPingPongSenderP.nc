@@ -53,7 +53,7 @@ implementation {
 					}
 					else warn1("snd %p %u", msg, err);
 				}
-				else warn1("gPl(%u)", m_pong_size);
+				else warn1("gPl(%u)", sizeof(TosPingPongPong_t));
 
 				call MessagePool.put(msg);
 			}

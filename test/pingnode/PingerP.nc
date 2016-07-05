@@ -20,6 +20,7 @@ implementation {
 	event void Boot.booted()
 	{
 		call Timer.startPeriodic(g_period);
+		debug1("PingerP started!");
 	}
 
 	event void Timer.fired()
@@ -28,9 +29,11 @@ implementation {
 		{
 			m_pings++;
 			call TosPingPong.ping(g_target, g_pongs, g_delay);
+			debug1("Sent ping");
 		}
 		else
 		{
+			debug1("Stopped timer");
 			call Timer.stop();
 		}
 	}
