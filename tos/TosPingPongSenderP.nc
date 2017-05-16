@@ -46,7 +46,7 @@ implementation {
 					err = call PingSend.send(target, msg, sizeof(TosPingPongPing_t));
 					if(err == SUCCESS)
 					{
-						debug1("snd %p", msg);
+						debug1("snd %p to %u", msg, target);
 						m_sending = TRUE;
 						call Leds.led0On();
 						return m_pingnum;

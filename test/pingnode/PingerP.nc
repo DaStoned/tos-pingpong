@@ -29,7 +29,7 @@ implementation {
 		{
 			m_pings++;
 			call TosPingPong.ping(g_target, g_pongs, g_delay);
-			debug1("Sent ping");
+			debug1("Sent ping %u/%u to %u pongs %u delay %u", m_pings, g_pings, g_target, g_pongs, g_delay);
 		}
 		else
 		{

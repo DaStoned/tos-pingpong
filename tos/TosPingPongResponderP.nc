@@ -68,7 +68,7 @@ implementation {
 				if(padding[i] == i) m_ping_size++;
 				else break;
 			}
-			debug1("ping from %04x num %u delay %u pongs %u", m_client, m_pingnum, m_delay, m_pongs);
+			debug1("ping from %04x num %"PRIu32" delay %"PRIu32" pongs %"PRIu32, m_client, m_pingnum, m_delay, m_pongs);
 			call Timer.startOneShot(0);
 		}
 		else
@@ -84,6 +84,7 @@ implementation {
 		{
 			uint32_t now = call Timer.getNow() - m_timestamp;
 			uint32_t next = m_pong*m_delay;
+			debug1("next@%"PRIu32" (pong %"PRIu32" delay %"PRIu32")", next, m_pong, m_delay);
 			if(next < now)
 			{
 				call Timer.startOneShot(0);
